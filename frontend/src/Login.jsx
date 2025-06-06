@@ -13,7 +13,7 @@ function Login({ onLogin }) {
     setError('')
 
     try {
-      const response = await axios.post('http://127.0.0.1:8000/api/login/', {
+      const response = await axios.post('http://192.168.1.44:8000/api/login/', {
         username,
         password
       })
@@ -28,6 +28,235 @@ function Login({ onLogin }) {
     }
   }
 
+  // Detectar si es móvil
+  const isMobile = window.innerWidth <= 768
+
+  if (isMobile) {
+    // DISEÑO MÓVIL: Fondo completo + formulario flotante
+    return (
+      <div style={{
+        height: '100vh',
+        width: '100vw',
+        backgroundImage: 'url("https://images.unsplash.com/photo-1621993202323-f438eec934ff?q=80&w=1964&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D")',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '20px',
+        position: 'relative'
+      }}>
+        {/* Overlay para legibilidad */}
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.4)',
+          backdropFilter: 'blur(1px)'
+        }}></div>
+
+        {/* Formulario flotante centrado */}
+        <div style={{
+          width: '100%',
+          maxWidth: '380px',
+          background: 'rgba(255, 255, 255, 0.95)',
+          borderRadius: '20px',
+          padding: '40px 30px',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255,255,255,0.2)',
+          zIndex: 1
+        }}>
+          
+          {/* Header del formulario */}
+          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+            <div style={{
+              fontSize: '40px',
+              marginBottom: '16px'
+            }}>
+              🚛
+            </div>
+            <h2 style={{
+              fontSize: '24px',
+              fontWeight: '700',
+              color: '#1e293b',
+              margin: '0 0 8px 0'
+            }}>
+              TransRural
+            </h2>
+            <p style={{
+              color: '#64748b',
+              fontSize: '14px',
+              margin: 0
+            }}>
+              Sistema de Transporte Rural
+            </p>
+          </div>
+
+          {error && (
+            <div style={{
+              background: '#fef2f2',
+              border: '1px solid #fca5a5',
+              color: '#dc2626',
+              padding: '16px',
+              borderRadius: '12px',
+              marginBottom: '24px',
+              fontSize: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <span>⚠️</span>
+              {error}
+            </div>
+          )}
+          
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            
+            <div>
+              <label style={{
+                display: 'block',
+                marginBottom: '8px',
+                color: '#374151',
+                fontSize: '14px',
+                fontWeight: '600'
+              }}>
+                👤 Usuario
+              </label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Ingresa tu usuario"
+                required
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '12px',
+                  fontSize: '16px',
+                  transition: 'all 0.2s ease',
+                  outline: 'none',
+                  background: 'white'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#3b82f6'
+                  e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#e2e8f0'
+                  e.target.style.boxShadow = 'none'
+                }}
+              />
+            </div>
+            
+            <div>
+              <label style={{
+                display: 'block',
+                marginBottom: '8px',
+                color: '#374151',
+                fontSize: '14px',
+                fontWeight: '600'
+              }}>
+                🔒 Contraseña
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Ingresa tu contraseña"
+                required
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '12px',
+                  fontSize: '16px',
+                  transition: 'all 0.2s ease',
+                  outline: 'none',
+                  background: 'white'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#3b82f6'
+                  e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#e2e8f0'
+                  e.target.style.boxShadow = 'none'
+                }}
+              />
+            </div>
+            
+            <button 
+              type="submit" 
+              disabled={loading}
+              style={{
+                width: '100%',
+                padding: '18px',
+                background: loading ? '#9ca3af' : '#3b82f6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s ease',
+                transform: 'translateY(0)',
+                marginTop: '8px'
+              }}
+              onMouseOver={(e) => {
+                if (!loading) {
+                  e.target.style.background = '#2563eb'
+                  e.target.style.transform = 'translateY(-1px)'
+                }
+              }}
+              onMouseOut={(e) => {
+                if (!loading) {
+                  e.target.style.background = '#3b82f6'
+                  e.target.style.transform = 'translateY(0)'
+                }
+              }}
+            >
+              {loading ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                  <div style={{
+                    width: '16px',
+                    height: '16px',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    borderTop: '2px solid white',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                  }}></div>
+                  Ingresando...
+                </div>
+              ) : (
+                '🚀 Ingresar al Sistema'
+              )}
+            </button>
+          </form>
+
+          {/* Info de tipos de usuario */}
+          <div style={{
+            marginTop: '24px',
+            textAlign: 'center',
+            padding: '16px',
+            background: '#f8fafc',
+            borderRadius: '12px',
+            fontSize: '13px',
+            color: '#64748b'
+          }}>
+            👨‍💼 Administrador | 🚛 Conductor
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // DISEÑO PC: Split-screen como antes
+
+  // DISEÑO PC: Split-screen como antes
   return (
     <div style={{
       height: '100vh',
@@ -180,7 +409,7 @@ function Login({ onLogin }) {
                 required
                 style={{
                   width: '100%',
-                  padding: '14px 16px',
+                  padding: '18px 16px',
                   border: '2px solid #e2e8f0',
                   borderRadius: '8px',
                   fontSize: '16px',
@@ -217,7 +446,7 @@ function Login({ onLogin }) {
                 required
                 style={{
                   width: '100%',
-                  padding: '14px 16px',
+                  padding: '18px 16px',
                   border: '2px solid #e2e8f0',
                   borderRadius: '8px',
                   fontSize: '16px',
@@ -241,7 +470,7 @@ function Login({ onLogin }) {
               disabled={loading}
               style={{
                 width: '100%',
-                padding: '16px',
+                padding: '18px',
                 background: loading ? '#9ca3af' : '#3b82f6',
                 color: 'white',
                 border: 'none',
@@ -314,15 +543,8 @@ function Login({ onLogin }) {
           </div>
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   )
 }
 
-export default Login
+export default Login 
