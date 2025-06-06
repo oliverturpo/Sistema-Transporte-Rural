@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import Login from './Login'
+import DashboardAdmin from './DashboardAdmin'
+import DashboardConductor from './DashboardConductor'
 import 'bootstrap/dist/css/bootstrap.min.css'
 
 function App() {
@@ -25,7 +27,7 @@ function App() {
       {/* Header */}
       <nav className="navbar navbar-expand-lg navbar-dark bg-primary">
         <div className="container-fluid">
-          <span className="navbar-brand">Sistema de Transporte</span>
+          <span className="navbar-brand">🚛 TransRural</span>
           <div className="navbar-nav ms-auto">
             <span className="navbar-text me-3">
               Bienvenido {user.nombre} ({user.tipo})
@@ -34,7 +36,7 @@ function App() {
               className="btn btn-outline-light btn-sm"
               onClick={handleLogout}
             >
-              Cerrar Sesión
+              📤 Cerrar Sesión
             </button>
           </div>
         </div>
@@ -47,69 +49,6 @@ function App() {
         ) : (
           <DashboardConductor user={user} />
         )}
-      </div>
-    </div>
-  )
-}
-
-// Dashboard para Administrador
-function DashboardAdmin() {
-  return (
-    <div className="row">
-      <div className="col-12">
-        <h2>Panel de Administrador</h2>
-        <div className="row mt-4">
-          <div className="col-md-3">
-            <div className="card text-center">
-              <div className="card-body">
-                <h5 className="card-title">Salidas de Hoy</h5>
-                <p className="card-text">Gestionar salidas programadas</p>
-                <button className="btn btn-primary">Ver Salidas</button>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-3">
-            <div className="card text-center">
-              <div className="card-body">
-                <h5 className="card-title">Vehículos</h5>
-                <p className="card-text">Administrar flota</p>
-                <button className="btn btn-success">Ver Vehículos</button>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-3">
-            <div className="card text-center">
-              <div className="card-body">
-                <h5 className="card-title">Vender Pasajes</h5>
-                <p className="card-text">Venta de boletos</p>
-                <button className="btn btn-warning">Vender</button>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-3">
-            <div className="card text-center">
-              <div className="card-body">
-                <h5 className="card-title">Encomiendas</h5>
-                <p className="card-text">Gestionar envíos</p>
-                <button className="btn btn-info">Ver Encomiendas</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// Dashboard para Conductor
-function DashboardConductor({ user }) {
-  return (
-    <div className="row">
-      <div className="col-12">
-        <h2>Panel de Conductor</h2>
-        <div className="alert alert-info">
-          Aquí verás tus salidas del día y pasajeros asignados
-        </div>
       </div>
     </div>
   )
