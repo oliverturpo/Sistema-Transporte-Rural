@@ -60,3 +60,23 @@ def crear_encomienda(request, salida_id):
         
     except Exception as e:
         return Response({'error': str(e)}, status=400)
+    
+
+@api_view(['PUT'])
+def entregar_encomienda(request, encomienda_id):
+    """Marcar encomienda como entregada"""
+    try:
+        from .models import Encomienda
+        from django.utils import timezone
+        
+        encomienda = Encomienda.objects.get(id=encomienda_id)
+        encomienda.estado = 'entregada'
+        encomienda.entregada_at = timezone.now()
+        encomienda.save()
+        
+        return Response({
+            'success': True,
+            'message': f'Encomienda entregada: {encomienda.descripcion}'
+        })
+    except Encomienda.DoesNotExist:
+        return Response({'error': 'Encomienda no encontrada'}, status=404)

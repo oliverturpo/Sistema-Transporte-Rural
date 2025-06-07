@@ -26,9 +26,8 @@ def get_vehiculos(request):
 @api_view(['POST'])
 def crear_vehiculo(request):
     """Crear nuevo vehículo"""
-    data = request.data
-    
     try:
+        data = request.data
         vehiculo = Vehiculo.objects.create(
             placa=data.get('placa').upper(),
             marca=data.get('marca'),
@@ -45,5 +44,48 @@ def crear_vehiculo(request):
             'vehiculo_id': vehiculo.id
         })
         
+    except Exception as e:
+        return Response({'error': str(e)}, status=400)
+    
+@api_view(['PUT'])
+def actualizar_vehiculo(request, vehiculo_id):
+    """Actualizar vehículo"""
+    try:
+        vehiculo = Vehiculo.objects.get(id=vehiculo_id)
+        
+        # Actualizar campos
+        vehiculo.placa = request.data.get('placa', vehiculo.placa).upper()
+        vehiculo.marca = request.data.get('marca', vehiculo.marca)
+        vehiculo.modelo = request.data.get('modelo', vehiculo.modelo)
+        vehiculo.año = request.data.get('año', vehiculo.año)
+        vehiculo.capacidad = request.data.get('capacidad', vehiculo.capacidad)
+        vehiculo.estado = request.data.get('estado', vehiculo.estado)
+        
+        # Conductor
+        conductor_id = request.data.get('conductor_id')
+        if conductor_id:
+            vehiculo.conductor_id = conductor_id
+        else:
+            vehiculo.conductor = None
+            
+        vehiculo.save()
+        
+        return Response({'success': True, 'message': 'Vehículo actualizado'})
+    except Vehiculo.DoesNotExist:
+        return Response({'error': 'Vehículo no encontrado'}, status=404)
+    except Exception as e:
+        return Response({'error': str(e)}, status=400)
+
+@api_view(['DELETE'])
+def eliminar_vehiculo(request, vehiculo_id):
+    """Eliminar vehículo"""
+    try:
+        vehiculo = Vehiculo.objects.get(id=vehiculo_id)
+        placa = vehiculo.placa
+        vehiculo.delete()
+        
+        return Response({'success': True, 'message': f'Vehículo {placa} eliminado'})
+    except Vehiculo.DoesNotExist:
+        return Response({'error': 'Vehículo no encontrado'}, status=404)
     except Exception as e:
         return Response({'error': str(e)}, status=400)
