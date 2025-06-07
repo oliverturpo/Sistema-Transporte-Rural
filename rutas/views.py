@@ -9,25 +9,107 @@ from usuarios.models import Usuario
 
 @api_view(['GET'])
 def salidas_hoy(request):
-    """API: Obtener salidas del día de hoy"""
+    """
+    API: Obtener salidas del día de hoy
+    ACTUALIZADA: Con restricciones de seguridad para conductores
+    """
     hoy = timezone.now().date()
-    salidas = Salida.objects.filter(fecha_hora__date=hoy).order_by('fecha_hora')
+    
+    # Verificar si es petición de conductor específico
+    conductor_id = request.GET.get('conductor_id')
+    
+    if conductor_id:
+        # CONDUCTOR: Solo ver sus propias salidas
+        salidas = Salida.objects.filter(
+            fecha_hora__date=hoy,
+            conductor_id=conductor_id
+        ).order_by('fecha_hora')
+    else:
+        # ADMIN: Ver todas las salidas
+        salidas = Salida.objects.filter(fecha_hora__date=hoy).order_by('fecha_hora')
     
     data = []
     for salida in salidas:
         data.append({
             'id': salida.id,
             'hora': salida.fecha_hora.strftime('%H:%M'),
-            'ruta': f"{salida.ruta.origen} → {salida.ruta.destino}",
-            'vehiculo': salida.vehiculo.placa,
-            'conductor': salida.conductor.get_full_name() or salida.conductor.username,
-            'capacidad': salida.vehiculo.capacidad,
-            'ocupados': salida.pasajes.count(),
-            'disponibles': salida.capacidad_disponible
+            'fecha_hora': salida.fecha_hora.strftime('%Y-%m-%d %H:%M'),
+            'ruta': {
+                'id': salida.ruta.id,
+                'nombre': salida.ruta.nombre,
+                'origen': salida.ruta.origen,
+                'destino': salida.ruta.destino
+            },
+            'vehiculo': {
+                'id': salida.vehiculo.id,
+                'placa': salida.vehiculo.placa,
+                'capacidad': salida.vehiculo.capacidad
+            },
+            'conductor': {
+                'id': salida.conductor.id,
+                'nombre': salida.conductor.get_full_name() or salida.conductor.username
+            },
+            'estado': salida.estado,
+            'pasajeros_count': salida.pasajes.count(),
+            'encomiendas_count': salida.encomiendas.count(),
+            'capacidad_disponible': salida.capacidad_disponible
         })
     
-    return Response(data)
+    return Response({
+        'success': True,
+        'salidas': data,
+        'fecha': hoy.strftime('%Y-%m-%d')
+    })
 
+
+@api_view(['GET'])
+def mis_salidas_conductor(request):
+    """
+    NUEVA: Obtener TODAS las salidas del conductor autenticado
+    """
+    conductor_id = request.GET.get('conductor_id')
+    if not conductor_id:
+        return Response({
+            'success': False,
+            'error': 'conductor_id es requerido'
+        }, status=400)
+    
+    # FILTRAR SOLO POR CONDUCTOR
+    salidas = Salida.objects.filter(
+        conductor_id=conductor_id
+    ).select_related('ruta', 'vehiculo', 'conductor').order_by('-fecha_hora')
+    
+    data = []
+    for salida in salidas:
+        total_pasajeros = salida.pasajes.count()
+        
+        data.append({
+            'id': salida.id,
+            'fecha_hora': salida.fecha_hora.strftime('%Y-%m-%d %H:%M'),
+            'ruta': {
+                'id': salida.ruta.id,
+                'nombre': salida.ruta.nombre,
+                'origen': salida.ruta.origen,
+                'destino': salida.ruta.destino
+            },
+            'vehiculo': {
+                'id': salida.vehiculo.id,
+                'placa': salida.vehiculo.placa,
+                'capacidad': salida.vehiculo.capacidad
+            },
+            'conductor': {
+                'id': salida.conductor.id,
+                'nombre': salida.conductor.get_full_name() or salida.conductor.username
+            },
+            'estado': salida.estado,
+            'pasajeros_count': total_pasajeros,
+            'encomiendas_count': salida.encomiendas.count()
+        })
+    
+    return Response({
+        'success': True,
+        'salidas': data
+    })
 
 
 @api_view(['GET'])
@@ -268,14 +350,24 @@ def crear_salida(request):
         
     except Exception as e:
         return Response({'error': str(e)}, status=400)
-    
-
-
-
 
 @api_view(['GET'])
 def get_salidas(request):
-    salidas = Salida.objects.all().order_by('-fecha_hora')
+    """
+    Obtener salidas con restricciones de seguridad
+    """
+    # Verificar si es petición de conductor específico
+    conductor_id = request.GET.get('conductor_id')
+    
+    if conductor_id:
+        # CONDUCTOR: Solo ver sus propias salidas
+        salidas = Salida.objects.filter(
+            conductor_id=conductor_id
+        ).order_by('-fecha_hora')
+    else:
+        # ADMIN: Ver todas las salidas
+        salidas = Salida.objects.all().order_by('-fecha_hora')
+    
     data = []
     for salida in salidas:
         data.append({
@@ -294,7 +386,7 @@ def get_salidas(request):
             },
             'conductor': {
                 'id': salida.conductor.id,
-                'nombre': salida.conductor.get_full_name()
+                'nombre': salida.conductor.get_full_name() or salida.conductor.username
             },
             'estado': salida.estado,
             'pasajeros_count': salida.pasajes.count(),
@@ -304,8 +396,19 @@ def get_salidas(request):
 
 @api_view(['PUT'])
 def cancelar_salida(request, salida_id):
+    """
+    Cancelar salida con restricciones de seguridad
+    """
     try:
         salida = Salida.objects.get(id=salida_id)
+        
+        # Verificar permisos si es conductor
+        conductor_id = request.data.get('conductor_id')
+        if conductor_id and int(conductor_id) != salida.conductor.id:
+            return Response({
+                'error': 'No tienes permisos para cancelar esta salida'
+            }, status=403)
+        
         salida.estado = 'cancelada'
         salida.save()
         return Response({
@@ -314,9 +417,6 @@ def cancelar_salida(request, salida_id):
         })
     except Salida.DoesNotExist:
         return Response({'error': 'Salida no encontrada'}, status=404)
-    
-
-# AGREGAR esta función en rutas/views.py
 
 @api_view(['GET'])
 def salidas_disponibles_venta(request):
@@ -355,13 +455,21 @@ def salidas_disponibles_venta(request):
     
     return Response(data)
 
-
-
 @api_view(['PUT'])
 def marcar_salida(request, salida_id):
-    """Marcar que el vehículo ha salido"""
+    """
+    Marcar que el vehículo ha salido - CON RESTRICCIONES DE SEGURIDAD
+    """
     try:
         salida = Salida.objects.get(id=salida_id)
+        
+        # Verificar que sea el conductor de la salida
+        conductor_id = request.data.get('conductor_id')
+        if conductor_id and int(conductor_id) != salida.conductor.id:
+            return Response({
+                'error': 'Solo el conductor asignado puede marcar la salida'
+            }, status=403)
+        
         salida.estado = 'en_curso'
         salida.save()
         
@@ -374,9 +482,19 @@ def marcar_salida(request, salida_id):
 
 @api_view(['PUT'])
 def marcar_llegada(request, salida_id):
-    """Marcar que el viaje ha terminado"""
+    """
+    Marcar que el viaje ha terminado - CON RESTRICCIONES DE SEGURIDAD
+    """
     try:
         salida = Salida.objects.get(id=salida_id)
+        
+        # Verificar que sea el conductor de la salida
+        conductor_id = request.data.get('conductor_id')
+        if conductor_id and int(conductor_id) != salida.conductor.id:
+            return Response({
+                'error': 'Solo el conductor asignado puede marcar la llegada'
+            }, status=403)
+        
         salida.estado = 'completada'
         salida.save()
         
@@ -386,6 +504,6 @@ def marcar_llegada(request, salida_id):
         })
     except Salida.DoesNotExist:
         return Response({'error': 'Salida no encontrada'}, status=404)
-    
+
 
     

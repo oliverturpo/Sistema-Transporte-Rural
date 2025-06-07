@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import ReservasConductor from './components/ReservasConductor/ReservasConductor'
 
 function DashboardConductor({ user }) {
   const [misSalidas, setMisSalidas] = useState([])
@@ -21,40 +22,44 @@ function DashboardConductor({ user }) {
   const loadConductorData = async () => {
     try {
       setLoading(true)
-      // Obtener salidas del conductor
-      const response = await fetch('http://192.168.1.44:8000/api/salidas/')
+      
+      // Usar API que filtra por conductor
+      const response = await fetch(`http://192.168.1.44:8000/api/salidas/?conductor_id=${user.id}`)
       const data = await response.json()
       
-      // Filtrar salidas de este conductor
-      const misSalidasData = data.filter(salida => 
-        salida.conductor.nombre.toLowerCase().includes(user.nombre.toLowerCase()) ||
-        salida.conductor.nombre.toLowerCase().includes(user.username.toLowerCase())
-      )
-      
-      setMisSalidas(misSalidasData)
+      // data es un array directamente
+      const salidaData = Array.isArray(data) ? data : []
+      setMisSalidas(salidaData)
       
       // Calcular estadísticas del conductor
-      const pasajerosTotal = misSalidasData.reduce((sum, salida) => sum + salida.pasajeros_count, 0)
       const ahora = new Date()
       
+      // Viajes de hoy
+      const viajesHoy = salidaData.filter(salida => {
+        const fechaSalida = new Date(salida.fecha_hora)
+        return fechaSalida.toDateString() === ahora.toDateString()
+      })
+      
+      // Contar pasajeros de hoy
+      const pasajerosHoy = viajesHoy.reduce((sum, salida) => sum + (salida.pasajeros_count || 0), 0)
+      
       // Encontrar próximo viaje
-      const proximoViaje = misSalidasData
+      const proximoViaje = salidaData
         .filter(salida => new Date(salida.fecha_hora) > ahora && salida.estado === 'programada')
         .sort((a, b) => new Date(a.fecha_hora) - new Date(b.fecha_hora))[0]
       
       // Encontrar viaje en curso
-      const enCurso = misSalidasData.find(salida => salida.estado === 'en_curso')
+      const enCurso = salidaData.find(salida => salida.estado === 'en_curso')
       
       setStats({
-        viajesHoy: misSalidasData.filter(s => 
-          new Date(s.fecha_hora).toDateString() === ahora.toDateString()
-        ).length,
-        pasajerosHoy: pasajerosTotal,
+        viajesHoy: viajesHoy.length,
+        pasajerosHoy: pasajerosHoy,
         proximoViaje: proximoViaje,
         enCurso: enCurso
       })
     } catch (error) {
       console.error('Error loading conductor data:', error)
+      setMisSalidas([])
     } finally {
       setLoading(false)
     }
@@ -62,21 +67,36 @@ function DashboardConductor({ user }) {
 
   const cargarPasajeros = async (salidaId) => {
     try {
-      const response = await fetch(`http://192.168.1.44:8000/api/salida/${salidaId}/pasajes/`)
+      const response = await fetch(`http://192.168.1.44:8000/api/salida/${salidaId}/pasajes/?conductor_id=${user.id}`)
       const data = await response.json()
-      setPasajeros(data.pasajes || [])
+      
+      if (data.success) {
+        setPasajeros(data.pasajes || [])
+      } else {
+        console.error('Error al cargar pasajeros:', data.error)
+        alert(`❌ ${data.error}`)
+        setPasajeros([])
+      }
     } catch (error) {
       console.error('Error al cargar pasajeros:', error)
+      setPasajeros([])
     }
   }
 
   const cargarEncomiendas = async (salidaId) => {
     try {
-      const response = await fetch(`http://192.168.1.44:8000/api/salida/${salidaId}/encomiendas/`)
+      const response = await fetch(`http://192.168.1.44:8000/api/salida/${salidaId}/encomiendas/?conductor_id=${user.id}`)
       const data = await response.json()
-      setEncomiendas(data || [])
+      
+      if (data.success) {
+        setEncomiendas(data.encomiendas || [])
+      } else {
+        console.error('Error al cargar encomiendas:', data.error)
+        setEncomiendas([])
+      }
     } catch (error) {
       console.error('Error al cargar encomiendas:', error)
+      setEncomiendas([])
     }
   }
 
@@ -86,6 +106,12 @@ function DashboardConductor({ user }) {
     try {
       const response = await fetch(`http://192.168.1.44:8000/api/salidas/${salidaId}/marcar-salida/`, {
         method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          conductor_id: user.id
+        })
       })
       const data = await response.json()
       
@@ -106,6 +132,12 @@ function DashboardConductor({ user }) {
     try {
       const response = await fetch(`http://192.168.1.44:8000/api/salidas/${salidaId}/marcar-llegada/`, {
         method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          conductor_id: user.id
+        })
       })
       const data = await response.json()
       
@@ -124,11 +156,16 @@ function DashboardConductor({ user }) {
     try {
       const response = await fetch(`http://192.168.1.44:8000/api/pasaje/${pasajeroId}/check-in/`, {
         method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          conductor_id: user.id
+        })
       })
       const data = await response.json()
       
       if (data.success) {
-        // Actualizar lista de pasajeros
         cargarPasajeros(salidaSeleccionada.id)
       } else {
         alert(data.error || 'Error al hacer check-in')
@@ -142,6 +179,12 @@ function DashboardConductor({ user }) {
     try {
       const response = await fetch(`http://192.168.1.44:8000/api/encomienda/${encomiendaId}/entregar/`, {
         method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          conductor_id: user.id
+        })
       })
       const data = await response.json()
       
@@ -154,6 +197,72 @@ function DashboardConductor({ user }) {
     } catch (error) {
       alert('Error al marcar encomienda')
     }
+  }
+
+  const descargarManifiesto = async (salidaId) => {
+    try {
+      // Descargar directamente como PDF
+      const url = `http://192.168.1.44:8000/api/salida/${salidaId}/manifiesto-pdf/?conductor_id=${user.id}`
+      
+      // Crear enlace temporal para descarga
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `manifiesto_${salidaId}_${new Date().toISOString().slice(0,10)}.pdf`
+      link.target = '_blank'
+      
+      // Agregar al DOM, hacer clic y remover
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      alert('✅ Descargando manifiesto en PDF...')
+    } catch (error) {
+      console.error('Error:', error)
+      alert('Error al descargar manifiesto')
+    }
+  }
+
+  const generarManifiestoTexto = (manifiesto) => {
+    const { salida, pasajeros, estadisticas } = manifiesto
+    
+    let texto = `
+╔══════════════════════════════════════════════════════════════╗
+║                        MANIFIESTO DE VIAJE                   ║
+╚══════════════════════════════════════════════════════════════╝
+
+📍 INFORMACIÓN DEL VIAJE
+═══════════════════════════════════════════════════════════════
+• Ruta: ${salida.ruta.nombre}
+• Origen: ${salida.ruta.origen}
+• Destino: ${salida.ruta.destino}
+• Fecha y Hora: ${salida.fecha_hora}
+• Vehículo: ${salida.vehiculo.placa}
+• Conductor: ${salida.conductor.nombre}
+
+📊 ESTADÍSTICAS
+═══════════════════════════════════════════════════════════════
+• Total Pasajeros: ${estadisticas.total_pasajeros}
+• Capacidad Vehículo: ${estadisticas.capacidad_vehiculo}
+• Asientos Disponibles: ${estadisticas.asientos_disponibles}
+• Ingresos Generados: S/ ${estadisticas.ingresos_generados.toFixed(2)}
+
+👥 LISTA DE PASAJEROS
+═══════════════════════════════════════════════════════════════
+`
+    
+    pasajeros.forEach(pasajero => {
+      const tipoEmoji = pasajero.tipo === 'Reserva del Conductor' ? '🚛' : '🎫'
+      texto += `${tipoEmoji} Asiento ${pasajero.asiento.toString().padStart(2, '0')} | ${pasajero.nombre.padEnd(25)} | ${pasajero.dni} | ${pasajero.telefono} | ${pasajero.tipo}\n`
+    })
+    
+    texto += `
+═══════════════════════════════════════════════════════════════
+📅 Generado: ${estadisticas.fecha_generacion}
+🚛 Sistema de Transporte Rural
+═══════════════════════════════════════════════════════════════
+`
+    
+    return texto
   }
 
   const verDetallesSalida = (salida) => {
@@ -180,7 +289,7 @@ function DashboardConductor({ user }) {
     }
   }
 
-  // ============ VISTA DETALLES DE SALIDA ============
+  // VISTA DETALLES DE SALIDA
   if (vistaActual === 'detalles' && salidaSeleccionada) {
     return (
       <div style={{
@@ -211,7 +320,7 @@ function DashboardConductor({ user }) {
             >
               ← Volver
             </button>
-            <h2 style={{ margin: 0, color: '#1e293b' }}>🚛 Detalles del Viaje</h2>
+            <h2 style={{ margin: 0, color: '#1e293b' }}>🚛 Mi Viaje - {salidaSeleccionada.ruta?.nombre || 'Sin nombre'}</h2>
             <div></div>
           </div>
 
@@ -222,14 +331,14 @@ function DashboardConductor({ user }) {
             marginBottom: '20px'
           }}>
             <div>
-              <strong>Ruta:</strong> {salidaSeleccionada.ruta.nombre}<br />
-              <small>{salidaSeleccionada.ruta.origen} → {salidaSeleccionada.ruta.destino}</small>
+              <strong>Ruta:</strong> {salidaSeleccionada.ruta?.nombre || 'N/A'}<br />
+              <small>{salidaSeleccionada.ruta?.origen || 'N/A'} → {salidaSeleccionada.ruta?.destino || 'N/A'}</small>
             </div>
             <div>
-              <strong>Fecha/Hora:</strong> {salidaSeleccionada.fecha_hora}
+              <strong>Fecha/Hora:</strong> {salidaSeleccionada.fecha_hora || 'N/A'}
             </div>
             <div>
-              <strong>Vehículo:</strong> {salidaSeleccionada.vehiculo.placa}
+              <strong>Vehículo:</strong> {salidaSeleccionada.vehiculo?.placa || 'N/A'}
             </div>
             <div>
               <strong>Estado:</strong> 
@@ -281,6 +390,32 @@ function DashboardConductor({ user }) {
                 🏁 Marcar Llegada
               </button>
             )}
+            
+            {/* Botón para reservar asientos */}
+            <ReservasConductor 
+              user={user} 
+              salida={salidaSeleccionada} 
+              onReservaCreada={() => {
+                cargarPasajeros(salidaSeleccionada.id)
+                loadConductorData()
+              }}
+            />
+            
+            {/* Botón para descargar manifiesto PDF */}
+            <button 
+              onClick={() => descargarManifiesto(salidaSeleccionada.id)}
+              style={{
+                background: '#7c3aed',
+                color: 'white',
+                border: 'none',
+                padding: '12px 20px',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                fontWeight: '600'
+              }}
+            >
+              📄 Descargar PDF
+            </button>
           </div>
         </div>
 
@@ -292,54 +427,80 @@ function DashboardConductor({ user }) {
           marginBottom: '25px',
           boxShadow: '0 15px 30px rgba(0,0,0,0.08)'
         }}>
-          <h3 style={{ color: '#1e293b', marginBottom: '20px' }}>👥 Pasajeros ({pasajeros.length})</h3>
+          <h3 style={{ color: '#1e293b', marginBottom: '20px' }}>
+            👥 Mis Pasajeros ({pasajeros.length})
+          </h3>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {pasajeros.map(pasajero => (
-              <div key={pasajero.id} style={{
-                background: pasajero.estado === 'abordado' ? '#dcfce7' : '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: '12px',
-                padding: '15px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <div>
-                  <strong>{pasajero.nombre}</strong><br />
-                  <small>DNI: {pasajero.dni} • Asiento: {pasajero.asiento}</small>
+            {pasajeros.length === 0 ? (
+              <p style={{ color: '#6b7280', textAlign: 'center', padding: '20px' }}>
+                No hay pasajeros cargados para este viaje
+              </p>
+            ) : (
+              pasajeros.map(pasajero => (
+                <div key={pasajero.id} style={{
+                  background: pasajero.estado === 'abordado' ? '#dcfce7' : '#f8fafc',
+                  border: `2px solid ${pasajero.es_reserva_conductor ? '#8b5cf6' : '#e2e8f0'}`,
+                  borderRadius: '12px',
+                  padding: '15px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
+                      <span style={{ fontSize: '18px' }}>
+                        {pasajero.es_reserva_conductor ? '🚛' : '🎫'}
+                      </span>
+                      <strong>{pasajero.nombre}</strong>
+                      {pasajero.es_reserva_conductor && (
+                        <span style={{
+                          background: '#8b5cf6',
+                          color: 'white',
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          fontSize: '10px',
+                          fontWeight: '600'
+                        }}>
+                          MI RESERVA
+                        </span>
+                      )}
+                    </div>
+                    <small>DNI: {pasajero.dni} • Asiento: {pasajero.asiento}</small><br />
+                    <small>Tel: {pasajero.telefono || 'No registrado'}</small>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{
+                      background: pasajero.estado === 'abordado' ? '#059669' : '#6b7280',
+                      color: 'white',
+                      padding: '4px 12px',
+                      borderRadius: '12px',
+                      fontSize: '12px',
+                      fontWeight: '600'
+                    }}>
+                      {pasajero.estado === 'abordado' ? '✅ Abordado' : '⏳ Pendiente'}
+                    </span>
+                    {pasajero.estado !== 'abordado' && (
+                      <button 
+                        onClick={() => checkInPasajero(pasajero.id)}
+                        style={{
+                          background: '#3b82f6',
+                          color: 'white',
+                          border: 'none',
+                          padding: '8px 16px',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          fontWeight: '600'
+                        }}
+                      >
+                        ✅ Check-in
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{
-                    background: pasajero.estado === 'abordado' ? '#059669' : '#6b7280',
-                    color: 'white',
-                    padding: '4px 12px',
-                    borderRadius: '12px',
-                    fontSize: '12px',
-                    fontWeight: '600'
-                  }}>
-                    {pasajero.estado === 'abordado' ? '✅ Abordado' : '⏳ Pendiente'}
-                  </span>
-                  {pasajero.estado !== 'abordado' && (
-                    <button 
-                      onClick={() => checkInPasajero(pasajero.id)}
-                      style={{
-                        background: '#3b82f6',
-                        color: 'white',
-                        border: 'none',
-                        padding: '8px 16px',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        fontSize: '12px',
-                        fontWeight: '600'
-                      }}
-                    >
-                      ✅ Check-in
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
@@ -350,12 +511,12 @@ function DashboardConductor({ user }) {
           padding: '25px',
           boxShadow: '0 15px 30px rgba(0,0,0,0.08)'
         }}>
-          <h3 style={{ color: '#1e293b', marginBottom: '20px' }}>📦 Encomiendas ({encomiendas.length})</h3>
+          <h3 style={{ color: '#1e293b', marginBottom: '20px' }}>📦 Mis Encomiendas ({encomiendas.length})</h3>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {encomiendas.length === 0 ? (
               <p style={{ color: '#6b7280', textAlign: 'center', padding: '20px' }}>
-                No hay encomiendas para este viaje
+                No tienes encomiendas para este viaje
               </p>
             ) : (
               encomiendas.map(encomienda => (
@@ -411,7 +572,7 @@ function DashboardConductor({ user }) {
     )
   }
 
-  // ============ VISTA PRINCIPAL DASHBOARD ============
+  // VISTA PRINCIPAL DASHBOARD
   if (loading) {
     return (
       <div style={{
@@ -439,10 +600,9 @@ function DashboardConductor({ user }) {
               margin: '0 auto 20px'
             }}
           ></div>
-          <h3 style={{ color: '#374151', margin: 0 }}>Cargando tus viajes...</h3>
+          <h3 style={{ color: '#374151', margin: 0 }}>Cargando mis viajes...</h3>
         </div>
         
-        {/* Agregar CSS para la animación usando una hoja de estilo en línea */}
         <style dangerouslySetInnerHTML={{
           __html: `
             @keyframes spin {
@@ -463,7 +623,6 @@ function DashboardConductor({ user }) {
       padding: '20px 15px'
     }}>
       
-      {/* Agregar CSS para animaciones */}
       <style dangerouslySetInnerHTML={{
         __html: `
           @keyframes spin {
@@ -496,14 +655,14 @@ function DashboardConductor({ user }) {
           margin: '0 0 8px 0',
           letterSpacing: '-0.5px'
         }}>
-          Mi Día de Trabajo
+          Mi Panel de Conductor
         </h1>
         <p style={{
           fontSize: '18px',
           opacity: 0.9,
           margin: '0 0 15px 0'
         }}>
-          {user.nombre} - Conductor
+          {user.first_name || user.username} {user.last_name || ''} - Conductor
         </p>
         <div style={{
           fontSize: '16px',
@@ -602,7 +761,7 @@ function DashboardConductor({ user }) {
             position: 'relative',
             zIndex: 1
           }}>
-            🚀 PRÓXIMO VIAJE
+            🚀 MI PRÓXIMO VIAJE
           </h3>
           <div style={{
             fontSize: '24px',
@@ -611,7 +770,7 @@ function DashboardConductor({ user }) {
             position: 'relative',
             zIndex: 1
           }}>
-            {stats.proximoViaje.fecha_hora} - {stats.proximoViaje.ruta.nombre}
+            {stats.proximoViaje.fecha_hora} - {stats.proximoViaje.ruta?.nombre || 'Sin nombre'}
           </div>
           <div style={{
             fontSize: '16px',
@@ -620,7 +779,7 @@ function DashboardConductor({ user }) {
             position: 'relative',
             zIndex: 1
           }}>
-            🚛 {stats.proximoViaje.vehiculo.placa} • {stats.proximoViaje.pasajeros_count}/{stats.proximoViaje.vehiculo.capacidad} pasajeros
+            🚛 {stats.proximoViaje.vehiculo?.placa || 'N/A'} • {stats.proximoViaje.pasajeros_count || 0}/{stats.proximoViaje.vehiculo?.capacidad || 0} pasajeros
           </div>
           <button 
             onClick={() => marcarSalida(stats.proximoViaje.id)}
@@ -651,6 +810,107 @@ function DashboardConductor({ user }) {
         </div>
       )}
 
+      {/* VIAJE EN CURSO */}
+      {stats.enCurso && (
+        <div style={{
+          background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
+          borderRadius: '20px',
+          padding: '25px',
+          marginBottom: '25px',
+          color: 'white',
+          boxShadow: '0 20px 40px rgba(220, 38, 38, 0.4)',
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+          <div style={{
+            position: 'absolute',
+            top: '-20px',
+            right: '-20px',
+            fontSize: '80px',
+            opacity: 0.2
+          }}>
+            🚛
+          </div>
+          <h3 style={{
+            fontSize: '20px',
+            fontWeight: '700',
+            margin: '0 0 15px 0',
+            position: 'relative',
+            zIndex: 1
+          }}>
+            🚛 VIAJE EN CURSO
+          </h3>
+          <div style={{
+            fontSize: '24px',
+            fontWeight: '800',
+            marginBottom: '10px',
+            position: 'relative',
+            zIndex: 1
+          }}>
+            {stats.enCurso.fecha_hora} - {stats.enCurso.ruta?.nombre || 'Sin nombre'}
+          </div>
+          <div style={{
+            fontSize: '16px',
+            opacity: 0.9,
+            marginBottom: '15px',
+            position: 'relative',
+            zIndex: 1
+          }}>
+            🚛 {stats.enCurso.vehiculo?.placa || 'N/A'} • {stats.enCurso.pasajeros_count || 0}/{stats.enCurso.vehiculo?.capacidad || 0} pasajeros
+          </div>
+          <div style={{ display: 'flex', gap: '10px', position: 'relative', zIndex: 1 }}>
+            <button 
+              onClick={() => verDetallesSalida(stats.enCurso)}
+              style={{
+                background: 'rgba(255,255,255,0.2)',
+                border: '2px solid rgba(255,255,255,0.3)',
+                color: 'white',
+                padding: '12px 24px',
+                borderRadius: '12px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.3)'
+                e.currentTarget.style.transform = 'scale(1.05)'
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.2)'
+                e.currentTarget.style.transform = 'scale(1)'
+              }}
+            >
+              👁️ Ver Detalles
+            </button>
+            <button 
+              onClick={() => marcarLlegada(stats.enCurso.id)}
+              style={{
+                background: 'rgba(255,255,255,0.9)',
+                border: '2px solid rgba(255,255,255,1)',
+                color: '#dc2626',
+                padding: '12px 24px',
+                borderRadius: '12px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = 'white'
+                e.currentTarget.style.transform = 'scale(1.05)'
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.9)'
+                e.currentTarget.style.transform = 'scale(1)'
+              }}
+            >
+              🏁 Marcar Llegada
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* TODOS MIS VIAJES */}
       <div style={{
         background: 'white',
@@ -671,7 +931,7 @@ function DashboardConductor({ user }) {
             color: '#1e293b',
             margin: 0
           }}>
-            📋 Mis Salidas
+            📋 Mis Salidas Programadas
           </h3>
           <button 
             onClick={loadConductorData}
@@ -686,7 +946,7 @@ function DashboardConductor({ user }) {
               fontWeight: '600'
             }}
           >
-            🔄
+            🔄 Actualizar
           </button>
         </div>
 
@@ -739,14 +999,22 @@ function DashboardConductor({ user }) {
                       color: estado.color,
                       marginBottom: '5px'
                     }}>
-                      {salida.ruta.nombre}
+                      {salida.ruta?.nombre || 'Sin nombre'}
                     </div>
                     <div style={{
                       fontSize: '14px',
                       color: estado.color,
                       opacity: 0.8
                     }}>
-                      🚛 {salida.vehiculo.placa} • 👥 {salida.pasajeros_count}/{salida.vehiculo.capacidad} pasajeros
+                      🚛 {salida.vehiculo?.placa || 'N/A'} • 👥 {salida.pasajeros_count || 0}/{salida.vehiculo?.capacidad || 0} pasajeros
+                    </div>
+                    <div style={{
+                      fontSize: '12px',
+                      color: estado.color,
+                      opacity: 0.7,
+                      marginTop: '2px'
+                    }}>
+                      📅 {new Date(salida.fecha_hora).toLocaleDateString('es-PE')}
                     </div>
                   </div>
                   
@@ -776,7 +1044,7 @@ function DashboardConductor({ user }) {
                 No tienes viajes programados
               </div>
               <div style={{ fontSize: '14px', marginTop: '8px' }}>
-                Contacta con administración para más información
+                Contacta con administración para programar tus rutas
               </div>
             </div>
           )}

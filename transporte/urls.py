@@ -1,12 +1,27 @@
 from django.contrib import admin
 from django.urls import path
-from rutas.views import (salidas_hoy, get_rutas, crear_ruta, actualizar_ruta, 
-                        toggle_estado_ruta, eliminar_ruta, crear_salida, 
-                        get_salidas, cancelar_salida, marcar_salida, marcar_llegada)
+
+
+from rutas.views import (
+    salidas_hoy, get_rutas, crear_ruta, actualizar_ruta, 
+    toggle_estado_ruta, eliminar_ruta, crear_salida, 
+    get_salidas, cancelar_salida, marcar_salida, marcar_llegada,
+    mis_salidas_conductor  # AGREGAR ESTA LÍNEA
+)
+
+
 from usuarios.views import login_usuario, usuarios_conductores, registrar_conductor, get_conductores, actualizar_conductor, toggle_estado_conductor
+
+
 from vehiculos.views import get_vehiculos, crear_vehiculo, actualizar_vehiculo, eliminar_vehiculo
+
+
+# Actualizar el import de pasajes.views:
 from pasajes.views import (get_pasajes_salida, vender_pasaje, 
-                          get_manifiesto_salida, check_in_pasajero)
+                          get_manifiesto_salida, check_in_pasajero,
+                          reservar_asiento_conductor, get_asientos_disponibles_conductor,
+                          get_manifiesto_conductor, descargar_manifiesto_pdf)
+
 from encomiendas.views import (get_encomiendas_salida, crear_encomienda, 
                               entregar_encomienda)
 
@@ -41,6 +56,8 @@ urlpatterns = [
     path('api/salidas/<int:salida_id>/cancelar/', cancelar_salida, name='cancelar_salida'),
     path('api/salidas-disponibles/', salidas_disponibles_venta, name='salidas_disponibles_venta'),
     path('api/salida/<int:salida_id>/manifiesto/', get_manifiesto_salida, name='manifiesto_salida'),
+    # Agregar en urlpatterns:
+    path('api/mis-salidas-conductor/', mis_salidas_conductor, name='mis_salidas_conductor'),
     
     # APIs para conductores - NUEVAS URLs AGREGADAS
     path('api/salidas/<int:salida_id>/marcar-salida/', marcar_salida, name='marcar_salida'),
@@ -59,4 +76,15 @@ urlpatterns = [
     path('api/salida/<int:salida_id>/vender/', vender_pasaje, name='vender_pasaje'),
     path('api/salida/<int:salida_id>/encomiendas/', get_encomiendas_salida, name='encomiendas_salida'),
     path('api/salida/<int:salida_id>/encomienda/', crear_encomienda, name='crear_encomienda'),
+
+
+
+
+    # Agregar en urlpatterns:
+    path('api/salida/<int:salida_id>/reservar-conductor/', reservar_asiento_conductor, name='reservar_asiento_conductor'),
+    path('api/salida/<int:salida_id>/asientos-conductor/', get_asientos_disponibles_conductor, name='asientos_disponibles_conductor'),
+
+    # Agregar estas líneas en urlpatterns:
+    path('api/salida/<int:salida_id>/manifiesto-conductor/', get_manifiesto_conductor, name='manifiesto_conductor'),
+    path('api/salida/<int:salida_id>/manifiesto-pdf/', descargar_manifiesto_pdf, name='manifiesto_pdf'),
 ]
