@@ -39,7 +39,7 @@ const GestionRutas = ({ onVolver }) => {
   const cargarRutas = async () => {
     try {
       setLoading(true)
-      const response = await fetch('http://192.168.1.44:8000/api/rutas/')
+      const response = await fetch('http://192.168.80.175:8000/api/rutas/')
       const data = await response.json()
       setRutas(data)
     } catch (error) {
@@ -52,7 +52,7 @@ const GestionRutas = ({ onVolver }) => {
 
   const cargarVehiculos = async () => {
     try {
-      const response = await fetch('http://192.168.1.44:8000/api/vehiculos/')
+      const response = await fetch('http://192.168.80.175:8000/api/vehiculos/')
       const data = await response.json()
       setVehiculos(data.filter(v => v.estado === 'activo'))
     } catch (error) {
@@ -62,7 +62,7 @@ const GestionRutas = ({ onVolver }) => {
 
   const cargarConductores = async () => {
     try {
-      const response = await fetch('http://192.168.1.44:8000/api/conductores/lista/')  // ← CAMBIAR ESTA URL
+      const response = await fetch('http://192.168.80.175:8000/api/conductores/lista/')  // ← CAMBIAR ESTA URL
       const data = await response.json()
       console.log('Todos los conductores:', data) // Para debug
       // Solo conductores con vehículo asignado
@@ -76,7 +76,7 @@ const GestionRutas = ({ onVolver }) => {
 
   const cargarSalidas = async () => {
     try {
-      const response = await fetch('http://192.168.1.44:8000/api/salidas/')
+      const response = await fetch('http://192.168.80.175:8000/api/salidas/')
       const data = await response.json()
       setSalidas(data)
     } catch (error) {
@@ -157,8 +157,8 @@ const GestionRutas = ({ onVolver }) => {
       setLoading(true)
       
       const url = rutaEditando 
-        ? `http://192.168.1.44:8000/api/rutas/${rutaEditando.id}/actualizar/`
-        : 'http://192.168.1.44:8000/api/rutas/crear/'
+        ? `http://192.168.80.175:8000/api/rutas/${rutaEditando.id}/actualizar/`
+        : 'http://192.168.80.175:8000/api/rutas/crear/'
       
       const method = rutaEditando ? 'PUT' : 'POST'
       
@@ -229,7 +229,7 @@ const GestionRutas = ({ onVolver }) => {
       
       console.log('Datos a enviar:', salidaData)
       
-      const response = await fetch('http://192.168.1.44:8000/api/salidas/crear/', {
+      const response = await fetch('http://192.168.80.175:8000/api/salidas/crear/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -260,7 +260,7 @@ const GestionRutas = ({ onVolver }) => {
     }
 
     try {
-      const response = await fetch(`http://192.168.1.44:8000/api/rutas/${rutaId}/toggle-estado/`, {
+      const response = await fetch(`http://192.168.80.175:8000/api/rutas/${rutaId}/toggle-estado/`, {
         method: 'PUT',
       })
 
@@ -284,7 +284,7 @@ const GestionRutas = ({ onVolver }) => {
     }
 
     try {
-      const response = await fetch(`http://192.168.1.44:8000/api/rutas/${rutaId}/eliminar/`, {
+      const response = await fetch(`http://192.168.80.175:8000/api/rutas/${rutaId}/eliminar/`, {
         method: 'DELETE',
       })
 
@@ -308,7 +308,7 @@ const GestionRutas = ({ onVolver }) => {
     }
 
     try {
-      const response = await fetch(`http://192.168.1.44:8000/api/salidas/${salidaId}/cancelar/`, {
+      const response = await fetch(`http://192.168.80.175:8000/api/salidas/${salidaId}/cancelar/`, {
         method: 'PUT',
       })
 

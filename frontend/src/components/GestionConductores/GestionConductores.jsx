@@ -21,7 +21,7 @@ const GestionConductores = ({ onVolver }) => {
   const cargarConductores = async () => {
     try {
       setLoading(true)
-      const response = await fetch('http://192.168.1.44:8000/api/conductores/lista/')
+      const response = await fetch('http://192.168.80.175:8000/api/conductores/lista/')
       const data = await response.json()
       setConductores(data)
     } catch (error) {
@@ -98,8 +98,8 @@ const GestionConductores = ({ onVolver }) => {
       setLoading(true)
       
       const url = conductorEditando 
-        ? `http://192.168.1.44:8000/api/conductores/${conductorEditando.id}/actualizar/`
-        : 'http://192.168.1.44:8000/api/conductores/registrar/'
+        ? `http://192.168.80.175:8000/api/conductores/${conductorEditando.id}/actualizar/`
+        : 'http://192.168.80.175:8000/api/conductores/registrar/'
       
       const method = conductorEditando ? 'PUT' : 'POST'
       
@@ -134,7 +134,7 @@ const GestionConductores = ({ onVolver }) => {
     }
 
     try {
-      const response = await fetch(`http://192.168.1.44:8000/api/conductores/${conductorId}/toggle-estado/`, {
+      const response = await fetch(`http://192.168.80.175:8000/api/conductores/${conductorId}/toggle-estado/`, {
         method: 'PUT',
       })
 

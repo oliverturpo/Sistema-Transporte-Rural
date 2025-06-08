@@ -24,7 +24,7 @@ function DashboardConductor({ user }) {
       setLoading(true)
       
       // Usar API que filtra por conductor
-      const response = await fetch(`http://192.168.1.44:8000/api/salidas/?conductor_id=${user.id}`)
+      const response = await fetch(`http://192.168.80.175:8000/api/salidas/?conductor_id=${user.id}`)
       const data = await response.json()
       
       // data es un array directamente

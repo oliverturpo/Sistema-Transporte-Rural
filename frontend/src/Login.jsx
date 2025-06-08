@@ -13,7 +13,7 @@ function Login({ onLogin }) {
     setError('')
 
     try {
-      const response = await axios.post('http://192.168.1.44:8000/api/login/', {
+      const response = await axios.post('http://192.168.80.175:8000/api/login/', {
         username,
         password
       })

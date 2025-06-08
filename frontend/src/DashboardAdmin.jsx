@@ -29,9 +29,9 @@ function DashboardAdmin() {
     try {
       setLoading(true)
       const [salidasHoyRes, todasSalidasRes, vehiculosRes] = await Promise.all([
-        axios.get('http://192.168.1.44:8000/api/salidas-hoy/'),
-        axios.get('http://192.168.1.44:8000/api/salidas/'),  // ← NUEVA API CALL
-        axios.get('http://192.168.1.44:8000/api/vehiculos/')
+      axios.get('http://192.168.80.175:8000/api/salidas-hoy/'),
+      axios.get('http://192.168.80.175:8000/api/salidas/'),  // ← NUEVA API CALL
+      axios.get('http://192.168.80.175:8000/api/vehiculos/')
       ])
       
       setSalidasHoy(salidasHoyRes.data)

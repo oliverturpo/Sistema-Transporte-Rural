@@ -39,7 +39,7 @@ function ReservasConductor({ user, salida, onReservaCreada }) {
 
     try {
       setLoading(true)
-      const response = await fetch(`http://192.168.1.44:8000/api/salida/${salida.id}/reservar-conductor/`, {
+      const response = await fetch(`http://192.168.80.175:8000/api/salida/${salida.id}/reservar-conductor/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -8,6 +8,7 @@ function VentaPasajes({ onVolver }) {
   const [salidaSeleccionada, setSalidaSeleccionada] = useState(null)
   const [asientoSeleccionado, setAsientoSeleccionado] = useState(null)
   const [asientosOcupados, setAsientosOcupados] = useState([])
+  const [detallesPasajes, setDetallesPasajes] = useState([]) // 🆕 NUEVO ESTADO
   const [loading, setLoading] = useState(true)
   const [ventaCompletada, setVentaCompletada] = useState(null)
 
@@ -26,21 +27,26 @@ function VentaPasajes({ onVolver }) {
   const cargarSalidas = async () => {
     try {
       setLoading(true)
-      const response = await fetch('http://192.168.1.44:8000/api/salidas-disponibles/')
+      const response = await fetch('http://192.168.80.175:8000/api/salidas-disponibles/')
       const data = await response.json()
       
       // Calcular saldo total por salida para el chofer
       const salidasConSaldo = await Promise.all(
         data.map(async (salida) => {
           try {
-            const pasajesRes = await fetch(`http://192.168.1.44:8000/api/salida/${salida.id}/pasajes/`)
+            const pasajesRes = await fetch(`http://192.168.80.175:8000/api/salida/${salida.id}/pasajes/`)
             const pasajesData = await pasajesRes.json()
-            const saldoTotal = pasajesData.pasajes?.reduce((sum, p) => sum + parseFloat(p.precio), 0) || 0
+            
+            // 🔧 CORREGIDO: Usar pasajesData.pasajes y filtrar solo vendidos para saldo
+            const pasajes = pasajesData.success ? pasajesData.pasajes : []
+            const saldoTotal = pasajes
+              .filter(p => !p.es_reserva_conductor) // Solo pasajes vendidos
+              .reduce((sum, p) => sum + parseFloat(p.precio), 0) || 0
             
             return {
               ...salida,
               saldoTotal: saldoTotal,
-              totalPasajeros: pasajesData.pasajes?.length || 0
+              totalPasajeros: pasajes.length // Total incluyendo reservas
             }
           } catch (error) {
             return { ...salida, saldoTotal: 0, totalPasajeros: 0 }
@@ -64,13 +70,43 @@ function VentaPasajes({ onVolver }) {
     }
   }, [salidaSeleccionada])
 
+  // 🔧 FUNCIÓN CORREGIDA
   const cargarAsientosOcupados = async () => {
     try {
-      const response = await fetch(`http://192.168.1.44:8000/api/salida/${salidaSeleccionada.id}/pasajes/`)
+      const response = await fetch(`http://192.168.80.175:8000/api/salida/${salidaSeleccionada.id}/pasajes/`)
       const data = await response.json()
-      setAsientosOcupados(data.asientos_ocupados || [])
+      
+      console.log('Datos recibidos:', data) // Para debug
+      
+      if (data.success && data.pasajes) {
+        // Extraer solo los números de asiento de TODOS los pasajes (vendidos + reservas)
+        const asientosOcupados = data.pasajes.map(pasaje => pasaje.asiento)
+        setAsientosOcupados(asientosOcupados)
+        
+        // También guardamos los detalles de los pasajes para mostrar información
+        setDetallesPasajes(data.pasajes)
+      } else {
+        console.error('Error en respuesta:', data)
+        setAsientosOcupados([])
+        setDetallesPasajes([])
+      }
     } catch (error) {
       console.error('Error al cargar asientos:', error)
+      setAsientosOcupados([])
+      setDetallesPasajes([])
+    }
+  }
+
+  // 🆕 FUNCIÓN para obtener detalles de un asiento ocupado
+  const getDetalleAsiento = (numeroAsiento) => {
+    const pasaje = detallesPasajes.find(p => p.asiento === numeroAsiento)
+    if (!pasaje) return null
+    
+    return {
+      nombre: pasaje.nombre,
+      tipo: pasaje.es_reserva_conductor ? 'Reserva del Conductor' : 'Vendido',
+      emoji: pasaje.es_reserva_conductor ? '🚛' : '🎫',
+      color: pasaje.es_reserva_conductor ? '#8b5cf6' : '#dc2626'
     }
   }
 
@@ -119,7 +155,7 @@ function VentaPasajes({ onVolver }) {
     if (!validarFormulario()) return
 
     try {
-      const response = await fetch(`http://192.168.1.44:8000/api/salida/${salidaSeleccionada.id}/vender/`, {
+      const response = await fetch(`http://192.168.80.175:8000/api/salida/${salidaSeleccionada.id}/vender/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -156,7 +192,7 @@ function VentaPasajes({ onVolver }) {
 
   const generarManifiestoPDF = async (salidaId) => {
     try {
-      const response = await fetch(`http://192.168.1.44:8000/api/salida/${salidaId}/manifiesto/`)
+      const response = await fetch(`http://192.168.80.175:8000/api/salida/${salidaId}/manifiesto/`)
       const data = await response.json()
       
       // Crear PDF con jsPDF
@@ -197,7 +233,7 @@ function VentaPasajes({ onVolver }) {
       pdf.text('NOMBRE COMPLETO', 35, yPos)
       pdf.text('DNI', 100, yPos)
       pdf.text('ASIENTO', 130, yPos)
-      pdf.text('TELÉFONO', 155, yPos)
+      pdf.text('TIPO', 155, yPos)
       
       // Línea bajo encabezados
       pdf.line(20, yPos + 3, 190, yPos + 3)
@@ -215,11 +251,13 @@ function VentaPasajes({ onVolver }) {
           yPos = 30
         }
         
+        const tipo = pasajero.es_reserva_conductor ? 'RESERVA' : 'VENDIDO'
+        
         pdf.text((index + 1).toString(), 20, yPos)
         pdf.text(pasajero.nombre, 35, yPos)
         pdf.text(pasajero.dni, 100, yPos)
         pdf.text(pasajero.asiento.toString(), 135, yPos)
-        pdf.text(pasajero.telefono || '-', 155, yPos)
+        pdf.text(tipo, 155, yPos)
       })
       
       // Resumen final
@@ -324,6 +362,7 @@ function VentaPasajes({ onVolver }) {
     setSalidaSeleccionada(null)
     setAsientoSeleccionado(null)
     setVentaCompletada(null)
+    setDetallesPasajes([]) // 🆕 LIMPIAR DETALLES
     setFormData({ nombre: '', dni: '', telefono: '', montoRecibido: '' })
   }
 
@@ -472,9 +511,11 @@ function VentaPasajes({ onVolver }) {
                 <h5 className="text-center mb-4">🚗 Mapa de Asientos</h5>
                 
                 <div className="row g-3 justify-content-center" style={{ maxWidth: '400px', margin: '0 auto' }}>
+                  {/* 🔧 ASIENTOS CORREGIDOS CON TIPOS */}
                   {asientos.map(numeroAsiento => {
                     const ocupado = asientosOcupados.includes(numeroAsiento)
                     const seleccionado = asientoSeleccionado === numeroAsiento
+                    const detalles = getDetalleAsiento(numeroAsiento)
                     
                     return (
                       <div key={numeroAsiento} className="col-3">
@@ -483,7 +524,7 @@ function VentaPasajes({ onVolver }) {
                           disabled={ocupado}
                           className={`btn w-100 fw-bold fs-5 position-relative ${
                             ocupado 
-                              ? 'btn-dark disabled' 
+                              ? 'btn-outline-secondary disabled' 
                               : seleccionado
                                 ? 'btn-primary'
                                 : 'btn-outline-success'
@@ -491,21 +532,29 @@ function VentaPasajes({ onVolver }) {
                           style={{ 
                             height: '60px', 
                             borderRadius: '12px',
-                            opacity: ocupado ? '0.3' : '1',
+                            opacity: ocupado ? '0.7' : '1',
                             cursor: ocupado ? 'not-allowed' : 'pointer',
                             transform: seleccionado ? 'scale(1.05)' : 'scale(1)',
                             transition: 'all 0.3s ease',
-                            boxShadow: seleccionado ? '0 4px 15px rgba(13, 110, 253, 0.4)' : 'none'
+                            boxShadow: seleccionado ? '0 4px 15px rgba(13, 110, 253, 0.4)' : 'none',
+                            borderColor: ocupado && detalles ? detalles.color : undefined,
+                            borderWidth: ocupado && detalles ? '2px' : '1px'
                           }}
+                          title={ocupado && detalles ? `${detalles.tipo}: ${detalles.nombre}` : undefined}
                         >
-                          {ocupado && (
+                          {ocupado && detalles && (
                             <span 
-                              className="position-absolute top-50 start-50 translate-middle"
-                              style={{ fontSize: '1.5rem' }}
+                              className="position-absolute top-0 start-0"
+                              style={{ 
+                                fontSize: '0.8rem',
+                                transform: 'translate(-25%, -25%)',
+                                zIndex: 10
+                              }}
                             >
-                              ❌
+                              {detalles.emoji}
                             </span>
                           )}
+                          
                           {seleccionado && !ocupado && (
                             <span 
                               className="position-absolute top-50 start-50 translate-middle"
@@ -514,18 +563,20 @@ function VentaPasajes({ onVolver }) {
                               ✅
                             </span>
                           )}
-                          <span className={ocupado ? 'visually-hidden' : ''}>{numeroAsiento}</span>
+                          
+                          <span className={ocupado ? 'small' : ''}>{numeroAsiento}</span>
                         </button>
                       </div>
                     )
                   })}
                 </div>
                 
-                <div className="d-flex justify-content-center gap-4 mt-4 p-3 bg-light rounded">
+                {/* 🔧 LEYENDA ACTUALIZADA */}
+                <div className="d-flex justify-content-center gap-3 mt-4 p-3 bg-light rounded flex-wrap">
                   <div className="d-flex align-items-center gap-2">
                     <div 
                       className="bg-success rounded border border-success" 
-                      style={{ width: '20px', height: '20px', border: '2px solid #198754' }}
+                      style={{ width: '20px', height: '20px' }}
                     ></div>
                     <small className="fw-semibold text-success">✅ Disponible</small>
                   </div>
@@ -538,27 +589,43 @@ function VentaPasajes({ onVolver }) {
                   </div>
                   <div className="d-flex align-items-center gap-2">
                     <div 
-                      className="bg-dark rounded border border-dark" 
+                      className="rounded border" 
                       style={{ 
                         width: '20px', 
-                        height: '20px', 
-                        opacity: '0.3',
+                        height: '20px',
+                        backgroundColor: '#dc2626',
+                        borderColor: '#dc2626',
                         position: 'relative'
                       }}
                     >
-                      <span 
-                        style={{ 
-                          position: 'absolute', 
-                          top: '50%', 
-                          left: '50%', 
-                          transform: 'translate(-50%, -50%)',
-                          fontSize: '12px'
-                        }}
-                      >
-                        ❌
-                      </span>
+                      <span style={{ 
+                        position: 'absolute', 
+                        top: '-2px', 
+                        left: '-2px', 
+                        fontSize: '10px' 
+                      }}>🎫</span>
                     </div>
-                    <small className="fw-semibold text-danger">❌ Ocupado</small>
+                    <small className="fw-semibold" style={{ color: '#dc2626' }}>🎫 Vendido</small>
+                  </div>
+                  <div className="d-flex align-items-center gap-2">
+                    <div 
+                      className="rounded border" 
+                      style={{ 
+                        width: '20px', 
+                        height: '20px',
+                        backgroundColor: '#8b5cf6',
+                        borderColor: '#8b5cf6',
+                        position: 'relative'
+                      }}
+                    >
+                      <span style={{ 
+                        position: 'absolute', 
+                        top: '-2px', 
+                        left: '-2px', 
+                        fontSize: '10px' 
+                      }}>🚛</span>
+                    </div>
+                    <small className="fw-semibold" style={{ color: '#8b5cf6' }}>🚛 Reserva Conductor</small>
                   </div>
                 </div>
               </div>
@@ -769,8 +836,9 @@ function VentaPasajes({ onVolver }) {
                   
                   <div className="col-5"><strong>Conductor:</strong></div>
                   <div className="col-7">{ventaCompletada.salida.conductor}</div>
-                </div>
-                
+                  
+                  <div className="col-12"><hr className="my-2" /></div>
+                  
                   <div className="col-5"><strong>Total pagado:</strong></div>
                   <div className="col-7">S/{ventaCompletada.salida.precio}</div>
                   
@@ -779,6 +847,7 @@ function VentaPasajes({ onVolver }) {
                   
                   <div className="col-5"><strong>Vuelto:</strong></div>
                   <div className="col-7 text-success fw-bold">S/{ventaCompletada.vuelto.toFixed(2)}</div>
+                </div>
                 
                 <div className="text-center mt-4">
                   <p className="small text-muted mb-1">Ticket ID: {ventaCompletada.pasaje_id}</p>
@@ -804,4 +873,4 @@ function VentaPasajes({ onVolver }) {
   return null
 }
 
-export default VentaPasajes
+export default VentaPasajes 

@@ -25,8 +25,8 @@ function GestionVehiculos({ onVolver }) {
     try {
       setLoading(true)
       const [vehiculosRes, conductoresRes] = await Promise.all([
-        axios.get('http://192.168.1.44:8000/api/vehiculos/'),
-        axios.get('http://192.168.1.44:8000/api/conductores/')
+        axios.get('http://192.168.80.175:8000/api/vehiculos/'),
+        axios.get('http://192.168.80.175:8000/api/conductores/')
       ])
       
       setVehiculos(vehiculosRes.data)
@@ -97,11 +97,11 @@ function GestionVehiculos({ onVolver }) {
 
       if (editando) {
         // EDITAR - URL CORREGIDA
-        await axios.put(`http://192.168.1.44:8000/api/vehiculos/${editando.id}/actualizar/`, dataToSend)
+        await axios.put(`http://192.168.80.175:8000/api/vehiculos/${editando.id}/actualizar/`, dataToSend)
         alert('Vehículo actualizado correctamente')
       } else {
         // CREAR - URL EXISTENTE
-        await axios.post('http://192.168.1.44:8000/api/vehiculos/crear/', dataToSend)
+        await axios.post('http://192.168.80.175:8000/api/vehiculos/crear/', dataToSend)
         alert('Vehículo registrado correctamente')
       }
       
@@ -118,7 +118,7 @@ function GestionVehiculos({ onVolver }) {
 
     try {
       // ELIMINAR - URL CORREGIDA
-      await axios.delete(`http://192.168.1.44:8000/api/vehiculos/${vehiculo.id}/eliminar/`)
+      await axios.delete(`http://192.168.80.175:8000/api/vehiculos/${vehiculo.id}/eliminar/`)
       alert('Vehículo eliminado correctamente')
       cargarDatos()
     } catch (error) {
